@@ -1,4 +1,7 @@
-﻿Public Class Form1
+﻿Imports System.Data.OleDb
+Imports System.Globalization
+
+Public Class Form1
     Public Sub New()
         ' This call is required by the designer.
         InitializeComponent()
@@ -97,11 +100,87 @@
         End If
     End Sub
 
-    Private Sub TabPage1_Click(sender As Object, e As EventArgs) Handles TabPage1.Click
-
+    Private Sub btnNewNRI_Click(sender As Object, e As EventArgs) Handles btnNewNRI.Click
+        ClearNRIFORM()
+        ' Optional: Focus the first field after clearing
+        txtLocation.Focus()
     End Sub
 
-    Private Sub guna2DgvNonReportableItems_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles guna2DgvNonReportableItems.CellContentClick
-
+    Private Sub ClearNRIFORM()
+        txtID.Clear()
+        txtLocation.Clear()
+        txtItemCode.Clear()
+        txtSerialNum.Clear()
+        txtMakeModel.Clear()
+        txtAcqDate.Clear()
+        txtCost.Clear()
+        txtCount.Clear()
+        txtGrandTotal.Clear()
     End Sub
+
+    Private Sub btnSaveNRI_Click(sender As Object, e As EventArgs) Handles btnSaveNRI.Click
+        ' Prepare variables to store parsed numeric values
+        Dim costValue As Decimal = 0
+        Dim grandTotalValue As Decimal = 0
+        Dim countValue As Integer = 0
+
+        ' Attempt to parse Cost and GrandTotal from currency format; Count as integer
+        Dim parseCostSuccessful As Boolean = Decimal.TryParse(txtCost.Text, NumberStyles.Currency, CultureInfo.CurrentCulture, costValue)
+        Dim parseGrandTotalSuccessful As Boolean = Decimal.TryParse(txtGrandTotal.Text, NumberStyles.Currency, CultureInfo.CurrentCulture, grandTotalValue)
+        Dim parseCountSuccessful As Boolean = Integer.TryParse(txtCount.Text, countValue)
+
+        ' Create the itemDetails dictionary with parsed data and checks for empty strings
+        Dim itemDetails As New Dictionary(Of String, Object) From {
+        {"Location", txtLocation.Text},
+        {"ItemCode", txtItemCode.Text},
+        {"SerialNum", txtSerialNum.Text},
+        {"MakeModel", txtMakeModel.Text},
+        {"AcqDate", If(String.IsNullOrWhiteSpace(txtAcqDate.Text), DBNull.Value, If(DateTime.TryParse(txtAcqDate.Text, New DateTime()), DateTime.Parse(txtAcqDate.Text), DBNull.Value))},
+        {"Cost", If(parseCostSuccessful, costValue, DBNull.Value)},
+        {"Count", If(parseCountSuccessful, countValue, DBNull.Value)},
+        {"GrandTotal", If(parseGrandTotalSuccessful, grandTotalValue, DBNull.Value)}
+    }
+
+        ' Check if txtID is empty to determine insert or update
+        If String.IsNullOrWhiteSpace(txtID.Text) Then
+            ' Insert new record
+            InsertNonReportableItem(itemDetails)
+            MessageBox.Show("Record inserted successfully.")
+        Else
+            ' Update existing record
+            Dim itemId As Integer = Integer.Parse(txtID.Text)
+            UpdateNonReportableItem(itemId, itemDetails)
+            MessageBox.Show("Record updated successfully.")
+        End If
+
+        ' Refresh DataGridView to reflect the changes
+        RefreshDataGridView()
+    End Sub
+
+    Private Sub btnDeleteNRI_Click(sender As Object, e As EventArgs) Handles btnDeleteNRI.Click
+        If guna2DgvNonReportableItems.CurrentRow IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtID.Text) Then
+            Dim result As DialogResult = MessageBox.Show("Are you sure you want to delete this item?", "Confirm Deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+            If result = DialogResult.Yes Then
+                Try
+                    ' Attempt to delete the record
+                    DeleteNonReportableItem(Convert.ToInt32(txtID.Text))
+                    MessageBox.Show("Record deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Catch ex As Exception
+                    MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    ' Log the error or handle it as necessary
+                Finally
+                    RefreshDataGridView() ' Ensure the DataGridView is always refreshed
+                    ClearNRIFORM() ' Clear the form
+                End Try
+            End If
+        Else
+            MessageBox.Show("Please select a record to delete.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        End If
+    End Sub
+
+
+    Private Sub RefreshDataGridView()
+        guna2DgvNonReportableItems.DataSource = GetNonReportableItems()
+    End Sub
+
 End Class
