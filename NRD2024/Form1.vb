@@ -22,6 +22,10 @@ Public Class Form1
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         guna2DgvNonReportableItems.DataSource = GetNonReportableItems()
+        ' Populate ComboBox with table names
+        cmbTableSelection.Items.Add("NonReportableItems")
+        cmbTableSelection.Items.Add("Locations")
+        cmbTableSelection.Items.Add("Items")
     End Sub
 
     Private Sub TabPage1_Enter(sender As Object, e As EventArgs) Handles TabPage1.Enter
@@ -181,6 +185,66 @@ Public Class Form1
 
     Private Sub RefreshDataGridView()
         guna2DgvNonReportableItems.DataSource = GetNonReportableItems()
+    End Sub
+
+    Function GetFieldNamesForTable(tableName As String) As List(Of String)
+        Dim fieldNames As New List(Of String)
+
+        ' Add the field names for each table
+        Select Case tableName
+            Case "TBLNonReportableItems"
+                fieldNames.AddRange(New String() {"ID", "Location", "ItemCode", "SerialNumber", "MakeModel", "AcqDate", "Cost", "count", "GrandTotal"})
+            Case "TBLLocationCustodian"
+                fieldNames.AddRange(New String() {"ID", "custodianlname", "custodianfname", "location"})
+            Case "TBLItems"
+                fieldNames.AddRange(New String() {"ID", "ItemCode", "ItemDescription", "custodian"})
+        End Select
+
+        Return fieldNames
+    End Function
+
+    Private Sub cmbTableSelection_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbTableSelection.SelectedIndexChanged
+        ' Clear existing items and enable cmbFieldSelection
+        cmbFieldSelection.Items.Clear()
+        cmbFieldSelection.Enabled = True
+
+        ' Determine the selected table
+        Dim selectedTable As String = cmbTableSelection.SelectedItem.ToString()
+
+        ' Output the selected table to the debug console
+        Debug.WriteLine("Selected table: " & selectedTable)
+
+        ' Dynamically retrieve field names based on the selected table
+        Dim fieldNames As List(Of String) = GetFieldNamesForTable(selectedTable)
+
+        ' Debugging: output the count of field names retrieved
+        Debug.WriteLine("Number of fields retrieved: " & fieldNames.Count)
+
+        ' Add "All Fields" option
+        cmbFieldSelection.Items.Add("All Fields")
+
+        ' Populate cmbFieldSelection with actual field names
+        For Each fieldName In fieldNames
+            cmbFieldSelection.Items.Add(fieldName)
+            ' Debugging: output each field name to the debug console
+            Debug.WriteLine("Added field: " & fieldName)
+        Next
+
+        ' Select the "All Fields" option by default
+        cmbFieldSelection.SelectedIndex = 0
+
+        Select Case selectedTable
+            Case "NonReportableItems"
+                TabControl1.SelectedTab = TabPage1
+            Case "Locations"
+                TabControl1.SelectedTab = TabPage2
+            Case "Items"
+                TabControl1.SelectedTab = TabPage3
+            Case Else
+                ' If no matching case is found, output a message to the debug console
+                Debug.WriteLine("No matching case for the selected table: " & selectedTable)
+        End Select
+
     End Sub
 
 End Class

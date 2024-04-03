@@ -95,7 +95,7 @@ Module DatabaseAccessModule
             Dim parameters As New List(Of Object)
 
             ' For each possible field, check if it's in itemDetails and add it to the command
-            For Each field As String In New String() {"Location", "ItemCode", "SerialNum", "MakeModel", "AcqDate", "Cost", "[count]", "GrandTotal"}
+            For Each field As String In New String() {"Location", "ItemCode", "SerialNumber", "MakeModel", "AcqDate", "Cost", "[count]"}
                 If itemDetails.ContainsKey(field) Then
                     fields.Add(field)
                     placeholders.Add("?")
@@ -116,48 +116,51 @@ Module DatabaseAccessModule
     End Sub
 
     Public Sub UpdateNonReportableItem(itemId As Integer, itemDetails As Dictionary(Of String, Object))
-        ' Ensure the connection is opened
         Using connection As OleDbConnection = OpenConnection()
-            If connection Is Nothing Then Return
+            If connection Is Nothing Then
+                Debug.WriteLine("Connection is Nothing.")
+                Exit Sub
+            End If
 
-            ' Initialize the list for SET clause components and parameters
-            Dim setClauses As New List(Of String)
-            Dim parameters As New List(Of Object)
+            ' Ensure connection is open
+            If connection.State <> ConnectionState.Open Then
+                Debug.WriteLine("Opening connection...")
+                connection.Open()
+            End If
 
-            ' Dynamically construct the SET clause based on itemDetails
-            For Each kvp As KeyValuePair(Of String, Object) In itemDetails
-                ' Exclude the ID from the SET clause
-                If Not kvp.Key.Equals("ID", StringComparison.OrdinalIgnoreCase) Then
-                    setClauses.Add($"[{kvp.Key}] = ?") ' Use square brackets around column names
-                    parameters.Add(kvp.Value)
-                End If
-            Next
-
-            ' Combine the SET clauses into a single string
-            Dim setClauseString As String = String.Join(", ", setClauses)
-
-            ' Assuming this is the correct dynamic SQL generation
-            Dim cmdText As String = $"UPDATE TBLNonReportableItems SET {String.Join(", ", setClauses)} WHERE ID = ?"
+            ' SQL command with named parameters
+            Dim cmdText As String = "UPDATE TBLNonReportableItems SET " &
+                                "[Location] = @Location, " &
+                                "[ItemCode] = @ItemCode, " &
+                                "[SerialNumber] = @SerialNumber, " &
+                                "[MakeModel] = @MakeModel, " &
+                                "[AcqDate] = @AcqDate, " &
+                                "[Cost] = @Cost, " &
+                                "[count] = @Count " &   ' "count" is a reserved word, so it is enclosed in brackets
+                                "WHERE [ID] = @ID"
 
             Using cmd As New OleDbCommand(cmdText, connection)
-                For Each value In parameters ' Assuming 'parameters' is a List(Of Object) corresponding to values
-                    cmd.Parameters.AddWithValue("?", value)
-                Next
-                ' The last parameter is for the WHERE clause, matching the ID
-                cmd.Parameters.AddWithValue("?", itemId)
+                ' Add named parameters with values from the itemDetails dictionary
+                cmd.Parameters.Add(New OleDbParameter("@Location", itemDetails("Location")))
+                cmd.Parameters.Add(New OleDbParameter("@ItemCode", If(itemDetails.ContainsKey("ItemCode"), itemDetails("ItemCode"), DBNull.Value)))
+                cmd.Parameters.Add(New OleDbParameter("@SerialNumber", If(itemDetails.ContainsKey("SerialNum"), itemDetails("SerialNum"), DBNull.Value)))
+                cmd.Parameters.Add(New OleDbParameter("@MakeModel", If(itemDetails.ContainsKey("MakeModel"), itemDetails("MakeModel"), DBNull.Value)))
+                cmd.Parameters.Add(New OleDbParameter("@AcqDate", If(itemDetails.ContainsKey("AcqDate"), itemDetails("AcqDate"), DBNull.Value)))
+                cmd.Parameters.Add(New OleDbParameter("@Cost", If(itemDetails.ContainsKey("Cost"), itemDetails("Cost"), DBNull.Value)))
+                cmd.Parameters.Add(New OleDbParameter("@Count", If(itemDetails.ContainsKey("Count"), itemDetails("Count"), DBNull.Value)))
+                cmd.Parameters.Add(New OleDbParameter("@ID", itemId))
 
-                Debug.WriteLine("Executing command: " & cmd.CommandText)
-                For i As Integer = 0 To cmd.Parameters.Count - 1
-                    Debug.WriteLine($"Param {i} ({cmd.Parameters(i).ParameterName}): {cmd.Parameters(i).Value} [{cmd.Parameters(i).Value.GetType()}]")
-                Next
-
-                cmd.ExecuteNonQuery()
+                ' Execute the update command
+                Try
+                    cmd.ExecuteNonQuery()
+                    Debug.WriteLine("Command executed successfully.")
+                Catch ex As OleDbException
+                    ' Handle the exception (e.g., log the error, display a message, etc.)
+                    Debug.WriteLine($"Error executing command: {ex.Message}")
+                End Try
             End Using
         End Using
     End Sub
-
-
-
 
     Public Sub DeleteNonReportableItem(itemId As Integer)
         Using connection As OleDbConnection = OpenConnection()
