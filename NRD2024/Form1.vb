@@ -2,6 +2,8 @@
 Imports System.Globalization
 
 Public Class Form1
+
+    Private displayingSearchResults As Boolean = False
     Public Sub New()
         ' This call is required by the designer.
         InitializeComponent()
@@ -29,19 +31,26 @@ Public Class Form1
     End Sub
 
     Private Sub TabPage1_Enter(sender As Object, e As EventArgs) Handles TabPage1.Enter
-        guna2DgvNonReportableItems.DataSource = GetNonReportableItems()
-        AdjustDgvForNonReportableItems()
+        If Not displayingSearchResults Then
+            guna2DgvNonReportableItems.DataSource = GetNonReportableItems()
+            AdjustDgvForNonReportableItems()
+        End If
     End Sub
 
     Private Sub TabPage2_Enter(sender As Object, e As EventArgs) Handles TabPage2.Enter
-        guna2DgvLocationCustodian.DataSource = GetLocationCustodianData()
-        AdjustDgvForLocationCustodianAndItems()
+        If Not displayingSearchResults Then
+            guna2DgvLocationCustodian.DataSource = GetLocationCustodianData()
+            AdjustDgvForLocationCustodianAndItems()
+        End If
     End Sub
 
     Private Sub TabPage3_Enter(sender As Object, e As EventArgs) Handles TabPage3.Enter
-        guna2DgvItems.DataSource = GetItemsData()
-        AdjustDgvForLocationCustodianAndItems()
+        If Not displayingSearchResults Then
+            guna2DgvItems.DataSource = GetItemsData()
+            AdjustDgvForLocationCustodianAndItems()
+        End If
     End Sub
+
 
     Private Sub AdjustDgvForNonReportableItems()
         ' Example for guna2DgvNonReportableItems where autosize is set to column header
@@ -197,7 +206,7 @@ Public Class Form1
             Case "TBLLocationCustodian"
                 fieldNames.AddRange(New String() {"ID", "custodianlname", "custodianfname", "location"})
             Case "TBLItems"
-                fieldNames.AddRange(New String() {"ID", "ItemCode", "ItemDescription", "custodian"})
+                fieldNames.AddRange(New String() {"ID", "ItemCode", "ItemDescription"})
         End Select
 
         Return fieldNames
@@ -207,44 +216,192 @@ Public Class Form1
         ' Clear existing items and enable cmbFieldSelection
         cmbFieldSelection.Items.Clear()
         cmbFieldSelection.Enabled = True
+        If cmbTableSelection.SelectedIndex >= 0 Then
+            ' Determine the selected table
+            Dim selectedTable As String = cmbTableSelection.SelectedItem.ToString()
 
-        ' Determine the selected table
-        Dim selectedTable As String = cmbTableSelection.SelectedItem.ToString()
+            ' Map the user-friendly names to actual table names if necessary
+            Dim tableNameMap As New Dictionary(Of String, String) From {
+                {"NonReportableItems", "TBLNonReportableItems"},
+                {"Locations", "TBLLocationCustodian"},
+                {"Items", "TBLItems"}
+            }
 
-        ' Output the selected table to the debug console
-        Debug.WriteLine("Selected table: " & selectedTable)
+            Dim actualTableName As String = tableNameMap(selectedTable)
 
-        ' Dynamically retrieve field names based on the selected table
-        Dim fieldNames As List(Of String) = GetFieldNamesForTable(selectedTable)
+            ' Dynamically retrieve field names based on the selected table
+            Dim fieldNames As List(Of String) = GetFieldNamesForTable(actualTableName)
 
-        ' Debugging: output the count of field names retrieved
-        Debug.WriteLine("Number of fields retrieved: " & fieldNames.Count)
+            ' Debugging: output the count of field names retrieved
+            Debug.WriteLine("Number of fields retrieved: " & fieldNames.Count)
 
-        ' Add "All Fields" option
-        cmbFieldSelection.Items.Add("All Fields")
+            ' Add "All Fields" option
+            cmbFieldSelection.Items.Add("All Fields")
 
-        ' Populate cmbFieldSelection with actual field names
-        For Each fieldName In fieldNames
-            cmbFieldSelection.Items.Add(fieldName)
-            ' Debugging: output each field name to the debug console
-            Debug.WriteLine("Added field: " & fieldName)
-        Next
+            ' Populate cmbFieldSelection with actual field names
+            For Each fieldName In fieldNames
+                cmbFieldSelection.Items.Add(fieldName)
+                ' Debugging: output each field name to the debug console
+                Debug.WriteLine("Added field: " & fieldName)
+            Next
 
-        ' Select the "All Fields" option by default
-        cmbFieldSelection.SelectedIndex = 0
+            ' Select the "All Fields" option by default
+            cmbFieldSelection.SelectedIndex = 0
 
-        Select Case selectedTable
-            Case "NonReportableItems"
-                TabControl1.SelectedTab = TabPage1
-            Case "Locations"
-                TabControl1.SelectedTab = TabPage2
-            Case "Items"
-                TabControl1.SelectedTab = TabPage3
-            Case Else
-                ' If no matching case is found, output a message to the debug console
-                Debug.WriteLine("No matching case for the selected table: " & selectedTable)
-        End Select
+            ' Open the relevant tab
+            Select Case actualTableName
+                Case "TBLNonReportableItems"
+                    TabControl1.SelectedTab = TabPage1
+                Case "TBLLocationCustodian"
+                    TabControl1.SelectedTab = TabPage2
+                Case "TBLItems"
+                    TabControl1.SelectedTab = TabPage3
+                Case Else
+                    ' If no matching case is found, output a message to the debug console
+                    Debug.WriteLine("No matching case for the selected table: " & actualTableName)
+            End Select
+        End If
+
 
     End Sub
 
+    Private Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
+        ' Get user selections
+        Dim userSelectedTable As String = cmbTableSelection.SelectedItem.ToString()
+        Dim selectedField As String = cmbFieldSelection.SelectedItem.ToString()
+        Dim searchText As String = txtSearch.Text.Trim()
+
+        ' Map user-friendly table name to actual database table name
+        Dim actualTableName As String = MapUserSelectionToTableName(userSelectedTable)
+
+        ' Determine the target DataGridView for displaying the search results
+        Dim targetDGV As DataGridView = GetDataGridViewBasedOnTable(actualTableName)
+
+        If targetDGV Is Nothing Then
+            MessageBox.Show("No corresponding DataGridView found for the selected table.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Return
+        End If
+
+        ' Construct the search query based on user input
+        Dim query As String
+        If selectedField = "All Fields" Then
+            query = ConstructSearchAllFieldsQuery(actualTableName, searchText)
+        Else
+            ' For specific field search, it's better to use parameterized queries, but this is a simplified version
+            query = $"SELECT * FROM [{actualTableName}] WHERE [{selectedField}] LIKE '%{searchText}%'"
+        End If
+        displayingSearchResults = True
+        ' Execute the search query and display the results in the appropriate DataGridView
+        ExecuteSearchQuery(query, targetDGV)
+
+    End Sub
+
+
+    Private Function MapUserSelectionToTableName(userSelection As String) As String
+        Select Case userSelection
+            Case "NonReportableItems"
+                Return "TBLNonReportableItems"
+            Case "Locations"
+                Return "TBLLocationCustodian" ' Make sure this is the correct table name
+            Case "Items"
+                Return "TBLItems" ' Make sure this is the correct table name
+            Case Else
+                Throw New Exception("Invalid selection.")
+        End Select
+    End Function
+
+    Private Function ConstructSearchQuery(userSelection As String, searchField As String, searchText As String) As String
+        Dim tableName = MapUserSelectionToTableName(userSelection)
+
+        If searchField = "All Fields" Then
+            ' Assuming ConstructSearchAllFieldsQuery is correctly implemented
+            Return ConstructSearchAllFieldsQuery(tableName, searchText)
+        Else
+            ' Safe to assume parameters are used or input is sanitized to prevent SQL injection
+            Return $"SELECT * FROM [{tableName}] WHERE [{searchField}] LIKE '%{searchText}%'"
+        End If
+    End Function
+
+
+
+    Private Function ConstructSearchAllFieldsQuery(tableName As String, searchText As String) As String
+        Dim fields As List(Of String) = GetFieldNamesForTable(tableName)
+        ' Remove the "ID" field or any field that should not be searched
+        fields.Remove("ID")
+
+        Dim searchClauses As New List(Of String)
+        For Each field In fields
+            searchClauses.Add($"[{field}] LIKE '%{searchText}%'")
+        Next
+
+        ' Join the individual search clauses with OR
+        Dim searchQuery As String = String.Join(" OR ", searchClauses)
+        Dim query As String = $"SELECT * FROM [{tableName}] WHERE {searchQuery}"
+
+        Return query
+    End Function
+    Private Sub ExecuteSearchQuery(query As String, targetDataGridView As DataGridView)
+        Dim connectionString As String = $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Application.StartupPath}\newNonReportableItems.accdb"
+        Using conn As New OleDbConnection(connectionString)
+            Try
+                conn.Open()
+                Using cmd As New OleDbCommand(query, conn)
+                    ' Execute the query and load the result into a DataTable
+                    Dim table As New DataTable()
+                    Using reader As OleDbDataReader = cmd.ExecuteReader()
+                        table.Load(reader)
+                        ' Set the DataSource of the target DataGridView to display the results
+                        targetDataGridView.DataSource = table
+                    End Using
+                End Using
+            Catch ex As Exception
+                MessageBox.Show($"An error occurred while executing the search: {ex.Message}", "Search Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Finally
+                conn.Close()
+            End Try
+        End Using
+    End Sub
+    ' Corrected Dynamic DataGridView Selection Based on Table
+    ' Ensure this method accurately returns the correct DataGridView for the given table name
+    Private Function GetDataGridViewBasedOnTable(actualTableName As String) As DataGridView
+        Select Case actualTableName
+            Case "TBLNonReportableItems"
+                Return guna2DgvNonReportableItems
+            Case "TBLLocationCustodian"
+                Return guna2DgvLocationCustodian
+            Case "TBLItems"
+                Return guna2DgvItems
+            Case Else
+                Return Nothing
+        End Select
+    End Function
+
+
+
+    Private Sub resetSearch()
+        cmbTableSelection.SelectedIndex = 0
+        cmbFieldSelection.SelectedIndex = -1
+        txtSearch.ResetText()
+        cmbTableSelection.SelectedIndex = -1
+
+    End Sub
+
+    Private Sub guna2DgvLocationCustodian_CellClick(sender As Object, e As DataGridViewCellEventArgs) Handles guna2DgvLocationCustodian.CellClick
+        ' Check if the click is on a row, not the column header
+        If e.RowIndex >= 0 Then
+            ' Get the selected row
+            Dim selectedRow As DataGridViewRow = guna2DgvLocationCustodian.Rows(e.RowIndex)
+
+            ' Populate the textboxes
+            txtIDLocations.Text = selectedRow.Cells("ID").Value.ToString()
+            txtLocationLocations.Text = If(selectedRow.Cells("location").Value IsNot Nothing, selectedRow.Cells("Location").Value.ToString(), String.Empty)
+            txtLNameLocations.Text = If(selectedRow.Cells("custodianLname").Value IsNot Nothing, selectedRow.Cells("custodianLname").Value.ToString(), String.Empty)
+            txtFNameLocations.Text = If(selectedRow.Cells("custodianFname").Value IsNot Nothing, selectedRow.Cells("custodianFname").Value.ToString(), String.Empty)
+        End If
+    End Sub
+
+    Private Sub btnresetSearch_Click(sender As Object, e As EventArgs) Handles btnresetSearch.Click
+        resetSearch()
+        displayingSearchResults = False
+    End Sub
 End Class
