@@ -7,8 +7,7 @@ Public Class Form1
     Public Sub New()
         ' This call is required by the designer.
         InitializeComponent()
-
-        ' Apply the gradient background to the form
+        ' Apply the gradient background to th form
         GradientBackground.ApplyGradient(Me, "#C5ADC5", "#B2B5E0")
         ' Add any initialization after the InitializeComponent() call.
         AddHandler Guna2Panel1.Paint, AddressOf Guna2Panel1_Paint
@@ -394,7 +393,7 @@ Public Class Form1
 
             ' Populate the textboxes
             txtIDLocations.Text = selectedRow.Cells("ID").Value.ToString()
-            txtLocationLocations.Text = If(selectedRow.Cells("location").Value IsNot Nothing, selectedRow.Cells("Location").Value.ToString(), String.Empty)
+            txtLocationLocations.Text = If(selectedRow.Cells("location").Value IsNot Nothing, selectedRow.Cells("location").Value.ToString(), String.Empty)
             txtLNameLocations.Text = If(selectedRow.Cells("custodianLname").Value IsNot Nothing, selectedRow.Cells("custodianLname").Value.ToString(), String.Empty)
             txtFNameLocations.Text = If(selectedRow.Cells("custodianFname").Value IsNot Nothing, selectedRow.Cells("custodianFname").Value.ToString(), String.Empty)
         End If
@@ -404,4 +403,129 @@ Public Class Form1
         resetSearch()
         displayingSearchResults = False
     End Sub
+
+    Private Sub btnNewLocations_Click(sender As Object, e As EventArgs) Handles btnNewLocations.Click
+        ClearLocationsForm()
+    End Sub
+
+
+
+    Private Sub btnSaveLocations_Click(sender As Object, e As EventArgs) Handles btnSaveLocations.Click
+        Dim locationData As New Dictionary(Of String, Object)
+        locationData.Add("location", txtLocationLocations.Text)
+        locationData.Add("custodianLname", txtLNameLocations.Text)
+        locationData.Add("custodianFname", txtFNameLocations.Text)
+
+        Try
+            ' Assuming txtIDLocations contains the ID to update
+            If String.IsNullOrWhiteSpace(txtIDLocations.Text) Then
+                ' Insert new record
+                InsertLocation(locationData)
+                MessageBox.Show("Location inserted successfully", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Else
+                ' Update existing record
+                Dim id As Integer = Integer.Parse(txtIDLocations.Text)
+                UpdateLocation(id, locationData)
+                MessageBox.Show("Location updated successfully", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            End If
+        Catch ex As Exception
+            MessageBox.Show("An error occurred: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+        ' Clear the controls
+        ClearLocationsForm()
+
+        ' Refresh the DataGridView
+        RefreshLocationCustodianDGV()
+    End Sub
+
+    Private Sub ClearLocationsForm()
+        ' Clear each TextBox in the Locations form.
+        txtIDLocations.Clear()
+        txtLocationLocations.Clear()
+        txtLNameLocations.Clear()
+        txtFNameLocations.Clear()
+    End Sub
+
+    Private Sub RefreshLocationCustodianDGV()
+        ' Assuming you have a method to get the data and set it as the DataSource of the DataGridView
+        guna2DgvLocationCustodian.DataSource = GetLocationCustodianData()
+    End Sub
+
+
+
+    Private Function collectLocationData() As Dictionary(Of String, Object)
+        Dim locationData As New Dictionary(Of String, Object)
+        ' Populate locationData with values from your form controls
+        locationData("location") = txtLocationLocations.Text
+        locationData("custodianLname") = txtLNameLocations.Text
+        locationData("custodianFname") = txtFNameLocations.Text
+        ' Add more fields here as necessary.
+        Return locationData
+    End Function
+    Private Sub btnDeleteLocations_Click(sender As Object, e As EventArgs) Handles btnDeleteLocations.Click
+        If Not String.IsNullOrWhiteSpace(txtIDLocations.Text) Then
+            ' Confirm deletion
+            Dim result As DialogResult = MessageBox.Show("Are you sure you want to delete this location?", "Confirm Deletion", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+            If result = DialogResult.Yes Then
+                Try
+                    DeleteLocation(txtIDLocations.Text)
+                    MessageBox.Show("Location deleted successfully.", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    ' Optionally, refresh your data grid view or clear the form
+                    ClearLocationsForm()
+                    RefreshLocationCustodianDGV()
+                Catch ex As Exception
+                    MessageBox.Show("An error occurred while deleting the location: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End Try
+            End If
+        Else
+            MessageBox.Show("Please select a location to delete.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        End If
+    End Sub
+
+    Public Sub InsertLocation(locationData As Dictionary(Of String, Object))
+        Using connection As New OleDbConnection($"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Application.StartupPath}\newNonReportableItems.accdb")
+            connection.Open()
+            Dim command As New OleDbCommand("INSERT INTO TBLLocationCustodian (custodianLname, custodianFname, location) VALUES (?, ?, ?)", connection)
+
+            command.Parameters.AddWithValue("?", locationData("custodianLname"))
+            command.Parameters.AddWithValue("?", locationData("custodianFname"))
+            command.Parameters.AddWithValue("?", locationData("location"))
+
+            command.ExecuteNonQuery()
+        End Using
+    End Sub
+
+
+
+    Public Sub UpdateLocation(id As Integer, locationData As Dictionary(Of String, Object))
+        Using connection As New OleDbConnection($"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Application.StartupPath}\newNonReportableItems.accdb")
+            connection.Open()
+            Dim command As New OleDbCommand("UPDATE TBLLocationCustodian SET custodianLname = ?, custodianFname = ?, location = ? WHERE ID = ?", connection)
+
+            command.Parameters.AddWithValue("?", locationData("custodianLname"))
+            command.Parameters.AddWithValue("?", locationData("custodianFname"))
+            command.Parameters.AddWithValue("?", locationData("location"))
+            command.Parameters.AddWithValue("?", id)
+
+            command.ExecuteNonQuery()
+        End Using
+    End Sub
+
+
+
+    Public Sub DeleteLocation(id As Integer)
+        Using connection As New OleDbConnection($"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Application.StartupPath}\newNonReportableItems.accdb")
+            connection.Open()
+            Dim command As New OleDbCommand("DELETE FROM TBLLocationCustodian WHERE ID = ?", connection)
+
+            command.Parameters.AddWithValue("?", id)
+
+            command.ExecuteNonQuery()
+        End Using
+        guna2DgvLocationCustodian.DataSource = GetLocationCustodianData()
+    End Sub
+
+
+
 End Class
