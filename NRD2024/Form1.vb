@@ -325,12 +325,19 @@ Public Class Form1
 
     Private Function ConstructSearchAllFieldsQuery(tableName As String, searchText As String) As String
         Dim fields As List(Of String) = GetFieldNamesForTable(tableName)
-        ' Remove the "ID" field or any field that should not be searched
-        fields.Remove("ID")
+
+        ' Don't remove "ID" if you want to include it in the search
+        ' fields.Remove("ID") - Comment out or remove this line to include the ID in search
 
         Dim searchClauses As New List(Of String)
         For Each field In fields
-            searchClauses.Add($"[{field}] LIKE '%{searchText}%'")
+            ' For numeric fields like "ID", you would want to check if searchText is a number 
+            ' and only then include the field in the search to avoid SQL errors.
+            If field = "ID" AndAlso IsNumeric(searchText) Then
+                searchClauses.Add($"[{field}] = {searchText}")
+            Else
+                searchClauses.Add($"[{field}] LIKE '%{searchText}%'")
+            End If
         Next
 
         ' Join the individual search clauses with OR
@@ -339,6 +346,7 @@ Public Class Form1
 
         Return query
     End Function
+
     Private Sub ExecuteSearchQuery(query As String, targetDataGridView As DataGridView)
         Dim connectionString As String = $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Application.StartupPath}\newNonReportableItems.accdb"
         Using conn As New OleDbConnection(connectionString)
