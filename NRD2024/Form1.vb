@@ -215,6 +215,7 @@ Public Class Form1
         ' Clear existing items and enable cmbFieldSelection
         cmbFieldSelection.Items.Clear()
         cmbFieldSelection.Enabled = True
+        txtSearch.Clear()
         If cmbTableSelection.SelectedIndex >= 0 Then
             ' Determine the selected table
             Dim selectedTable As String = cmbTableSelection.SelectedItem.ToString()
@@ -387,7 +388,7 @@ Public Class Form1
 
     Private Sub resetSearch()
         cmbTableSelection.SelectedIndex = 0
-        cmbFieldSelection.SelectedIndex = -1
+        'cmbFieldSelection.SelectedIndex = -1
         txtSearch.ResetText()
         cmbTableSelection.SelectedIndex = -1
 
@@ -409,7 +410,18 @@ Public Class Form1
 
     Private Sub btnresetSearch_Click(sender As Object, e As EventArgs) Handles btnresetSearch.Click
         resetSearch()
+        ClearAllGuna2TextBoxes()
         displayingSearchResults = False
+
+        ' Refresh the current DataGridView based on the active tab
+        Select Case TabControl1.SelectedTab.Name
+            Case "TabPage1"
+                guna2DgvNonReportableItems.DataSource = GetNonReportableItems()
+            Case "TabPage2"
+                guna2DgvLocationCustodian.DataSource = GetLocationCustodianData()
+            Case "TabPage3"
+                guna2DgvItems.DataSource = GetItemsData()
+        End Select
     End Sub
 
     Private Sub btnNewLocations_Click(sender As Object, e As EventArgs) Handles btnNewLocations.Click
@@ -534,6 +546,23 @@ Public Class Form1
         guna2DgvLocationCustodian.DataSource = GetLocationCustodianData()
     End Sub
 
+    Private Sub ClearAllGuna2TextBoxes()
+        For Each ctrl In Me.Controls
+            ClearTextBoxes(ctrl)
+        Next
+    End Sub
 
+    Private Sub ClearTextBoxes(ByVal parent As Control)
+        For Each child As Control In parent.Controls
+            ' Recursive call for any container controls
+            If child.HasChildren Then
+                ClearTextBoxes(child)
+            End If
 
+            ' If the control is a Guna2TextBox, clear it
+            If TypeOf child Is Guna.UI2.WinForms.Guna2TextBox Then
+                DirectCast(child, Guna.UI2.WinForms.Guna2TextBox).Clear()
+            End If
+        Next
+    End Sub
 End Class
