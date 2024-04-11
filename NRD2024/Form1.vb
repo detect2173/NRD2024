@@ -565,4 +565,18 @@ Public Class Form1
             End If
         Next
     End Sub
+
+    Private Sub guna2DgvItems_CellClick(sender As Object, e As DataGridViewCellEventArgs) Handles guna2DgvItems.CellClick
+        ' Check if the click is on a row, not the column header
+        If e.RowIndex >= 0 Then
+            ' Get the selected row
+            Dim selectedRow As DataGridViewRow = guna2DgvItems.Rows(e.RowIndex)
+
+            ' Populate the textboxes
+            txtIDItems.Text = selectedRow.Cells("ID").Value.ToString()
+            txtItemCodeItems.Text = If(selectedRow.Cells("ItemCode").Value IsNot Nothing, selectedRow.Cells("ItemCode").Value.ToString(), String.Empty)
+            txtItemDescriptionItems.Text = If(selectedRow.Cells("ItemDescription").Value IsNot Nothing, selectedRow.Cells("ItemDescription").Value.ToString(), String.Empty)
+
+        End If
+    End Sub
 End Class
