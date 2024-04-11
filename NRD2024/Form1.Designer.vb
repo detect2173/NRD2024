@@ -1430,7 +1430,7 @@ Partial Class Form1
         Guna2GroupBox1.Location = New Point(21, 413)
         Guna2GroupBox1.Name = "Guna2GroupBox1"
         Guna2GroupBox1.ShadowDecoration.CustomizableEdges = CustomizableEdges2
-        Guna2GroupBox1.Size = New Size(205, 200)
+        Guna2GroupBox1.Size = New Size(205, 325)
         Guna2GroupBox1.TabIndex = 7
         Guna2GroupBox1.Text = "Print Functions"
         Guna2GroupBox1.TextAlign = HorizontalAlignment.Center
